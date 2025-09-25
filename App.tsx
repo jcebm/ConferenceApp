@@ -1,128 +1,55 @@
-import { View, Text, StyleSheet, ScrollView } from 'react-native';
-import QRCode from 'react-native-qrcode-svg';
+import { NavigationContainer } from '@react-navigation/native';
+import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
+import { Ionicons } from '@expo/vector-icons';
+
+// Import your screens
+import HomeScreen from './screens/HomeScreen';
+import ScheduleScreen from './screens/ScheduleScreen';
+import NetworkingScreen from './screens/NetworkingScreen';
+import ExhibitorsScreen from './screens/ExhibitorsScreen';
+
+const Tab = createBottomTabNavigator();
 
 export default function App() {
-  // This will eventually come from your login
-  const userName = "John Doe";
-  const userId = "user123";
-  const conferenceTitle = "TechConf 2024";
-  
   return (
-    <ScrollView style={styles.container}>
-      <View style={styles.header}>
-        <Text style={styles.welcome}>Welcome to</Text>
-        <Text style={styles.conferenceTitle}>{conferenceTitle}</Text>
-        <Text style={styles.userName}>{userName}</Text>
-      </View>
-      
-      <View style={styles.qrContainer}>
-        <Text style={styles.sectionTitle}>Your Networking Code</Text>
-        <QRCode
-          value={JSON.stringify({ id: userId, name: userName })}
-          size={200}
-          backgroundColor="white"
-        />
-        <Text style={styles.qrHint}>Let others scan to connect</Text>
-      </View>
-      
-      <View style={styles.sessionCard}>
-        <Text style={styles.sectionTitle}>Happening Now</Text>
-        <View style={styles.session}>
-          <Text style={styles.sessionName}>Opening Keynote</Text>
-          <Text style={styles.sessionDetails}>9:00 AM - Main Hall</Text>
-          <Text style={styles.sessionSpeaker}>Dr. Sarah Johnson</Text>
-        </View>
-      </View>
+    <NavigationContainer>
+      <Tab.Navigator
+        screenOptions={({ route }) => ({
+          tabBarIcon: ({ focused, color, size }) => {
+            let iconName: keyof typeof Ionicons.glyphMap = 'home';
 
-      <View style={styles.sessionCard}>
-        <Text style={styles.sectionTitle}>Up Next</Text>
-        <View style={styles.session}>
-          <Text style={styles.sessionName}>AI in Healthcare Panel</Text>
-          <Text style={styles.sessionDetails}>10:30 AM - Room A</Text>
-        </View>
-      </View>
-    </ScrollView>
+            if (route.name === 'Home') {
+              iconName = focused ? 'home' : 'home-outline';
+            } else if (route.name === 'Schedule') {
+              iconName = focused ? 'calendar' : 'calendar-outline';
+            } else if (route.name === 'Networking') {
+              iconName = focused ? 'people' : 'people-outline';
+            } else if (route.name === 'Exhibitors') {
+              iconName = focused ? 'business' : 'business-outline';
+            }
+
+            return <Ionicons name={iconName} size={size} color={color} />;
+          },
+          tabBarActiveTintColor: '#4A90E2',
+          tabBarInactiveTintColor: 'gray',
+          headerStyle: {
+            backgroundColor: '#4A90E2',
+          },
+          headerTintColor: '#fff',
+          headerTitleStyle: {
+            fontWeight: 'bold',
+          },
+        })}
+      >
+        <Tab.Screen 
+          name="Home" 
+          component={HomeScreen}
+          options={{ headerShown: false }}
+        />
+        <Tab.Screen name="Schedule" component={ScheduleScreen} />
+        <Tab.Screen name="Networking" component={NetworkingScreen} />
+        <Tab.Screen name="Exhibitors" component={ExhibitorsScreen} />
+      </Tab.Navigator>
+    </NavigationContainer>
   );
 }
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#f0f0f5',
-  },
-  header: {
-    backgroundColor: '#4A90E2',
-    paddingTop: 60,
-    paddingBottom: 30,
-    alignItems: 'center',
-  },
-  welcome: {
-    color: 'white',
-    fontSize: 18,
-  },
-  conferenceTitle: {
-    color: 'white',
-    fontSize: 28,
-    fontWeight: 'bold',
-    marginTop: 5,
-  },
-  userName: {
-    color: 'white',
-    fontSize: 22,
-    marginTop: 10,
-  },
-  qrContainer: {
-    backgroundColor: 'white',
-    margin: 20,
-    padding: 20,
-    borderRadius: 15,
-    alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
-  },
-  sectionTitle: {
-    fontSize: 18,
-    fontWeight: '600',
-    marginBottom: 15,
-    color: '#333',
-  },
-  qrHint: {
-    marginTop: 10,
-    color: '#666',
-    fontSize: 14,
-  },
-  sessionCard: {
-    backgroundColor: 'white',
-    marginHorizontal: 20,
-    marginBottom: 15,
-    padding: 20,
-    borderRadius: 15,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
-  },
-  session: {
-    paddingTop: 5,
-  },
-  sessionName: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#333',
-    marginBottom: 5,
-  },
-  sessionDetails: {
-    fontSize: 14,
-    color: '#666',
-    marginBottom: 3,
-  },
-  sessionSpeaker: {
-    fontSize: 14,
-    color: '#4A90E2',
-    fontStyle: 'italic',
-  },
-});
