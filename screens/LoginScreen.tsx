@@ -9,7 +9,7 @@ import {
   KeyboardAvoidingView,
   Platform 
 } from 'react-native';
-import { createUserWithEmailAndPassword, signInWithEmailAndPassword } from 'firebase/auth';
+import { createUserWithEmailAndPassword, signInWithEmailAndPassword, updateProfile } from 'firebase/auth';
 import { auth, db } from '../config/firebase';
 import { doc, setDoc } from 'firebase/firestore';
 
@@ -21,34 +21,40 @@ export default function LoginScreen({ onLogin }: { onLogin: (user: any) => void 
   const [loading, setLoading] = useState(false);
 
   const handleAuth = async () => {
-    if (!email || !password || (isSignUp && !name)) {
-      Alert.alert('Error', 'Please fill in all fields');
-      return;
-    }
+  if (!email || !password || (isSignUp && !name)) {
+    Alert.alert('Error', 'Please fill in all fields');
+    return;
+  }
 
-    setLoading(true);
-    try {
-      if (isSignUp) {
-        // Sign up
-        const userCredential = await createUserWithEmailAndPassword(auth, email, password);
-        // Save user profile
-        await setDoc(doc(db, 'users', userCredential.user.uid), {
-          name: name,
-          email: email,
-          createdAt: new Date().toISOString(),
-        });
-        onLogin(userCredential.user);
-      } else {
-        // Sign in
-        const userCredential = await signInWithEmailAndPassword(auth, email, password);
-        onLogin(userCredential.user);
-      }
-    } catch (error: any) {
-      Alert.alert('Error', error.message);
-    } finally {
-      setLoading(false);
+  setLoading(true);
+  try {
+    if (isSignUp) {
+      // Sign up
+      const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+      
+      // Update the profile with the name (this is instant)
+      await updateProfile(userCredential.user, {
+        displayName: name
+      });
+      
+      // Save user profile
+      await setDoc(doc(db, 'users', userCredential.user.uid), {
+        name: name,
+        email: email,
+        createdAt: new Date().toISOString(),
+      });
+      onLogin(userCredential.user);
+    } else {
+      // Sign in
+      const userCredential = await signInWithEmailAndPassword(auth, email, password);
+      onLogin(userCredential.user);
     }
-  };
+  } catch (error: any) {
+    Alert.alert('Error', error.message);
+  } finally {
+    setLoading(false);
+  }
+};
 
   return (
     <KeyboardAvoidingView 

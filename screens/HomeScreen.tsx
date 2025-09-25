@@ -1,37 +1,30 @@
 import { View, Text, StyleSheet, ScrollView } from 'react-native';
 import QRCode from 'react-native-qrcode-svg';
-import { useState, useEffect } from 'react';
-import { auth, db } from '../config/firebase';
-import { doc, getDoc } from 'firebase/firestore';
+import { auth } from '../config/firebase';
+import { signOut } from 'firebase/auth';
+import { TouchableOpacity } from 'react-native';  // Add TouchableOpacity to your imports
 
 export default function HomeScreen() {
-  const [userName, setUserName] = useState("Loading...");
+  // Get the name directly from the auth profile (faster!)
+  const userName = auth.currentUser?.displayName || auth.currentUser?.email?.split('@')[0] || "Attendee";
   const userId = auth.currentUser?.uid || "no-user";
   const conferenceTitle = "TechConf 2024";
-
-  useEffect(() => {
-    // Fetch user's name from Firestore
-    const fetchUserName = async () => {
-      if (auth.currentUser) {
-        const userDoc = await getDoc(doc(db, 'users', auth.currentUser.uid));
-        if (userDoc.exists()) {
-          setUserName(userDoc.data().name);
-        }
-      }
-    };
-    fetchUserName();
-  }, []);
-
-  // Rest of your code stays the same...
-  return (
   
+  return (
     <ScrollView style={styles.container}>
+        
+      {/* Rest stays exactly the same */}
       <View style={styles.header}>
-        <Text style={styles.welcome}>Welcome to</Text>
-        <Text style={styles.conferenceTitle}>{conferenceTitle}</Text>
-        <Text style={styles.userName}>{userName}</Text>
-      </View>
-      
+  <TouchableOpacity 
+    style={styles.logoutButton} 
+    onPress={() => signOut(auth)}
+  >
+    <Text style={styles.logoutText}>Logout</Text>
+  </TouchableOpacity>
+  <Text style={styles.welcome}>Welcome to</Text>
+  <Text style={styles.conferenceTitle}>{conferenceTitle}</Text>
+  <Text style={styles.userName}>{userName}</Text>
+</View>
       <View style={styles.qrContainer}>
         <Text style={styles.sectionTitle}>Your Networking Code</Text>
         <QRCode
@@ -142,4 +135,15 @@ const styles = StyleSheet.create({
     color: '#4A90E2',
     fontStyle: 'italic',
   },
+
+  logoutButton: {
+  position: 'absolute',
+  top: 50,
+  right: 20,
+  padding: 10,
+},
+logoutText: {
+  color: 'white',
+  fontSize: 16,
+},
 });
