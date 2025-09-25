@@ -1,12 +1,30 @@
 import { View, Text, StyleSheet, ScrollView } from 'react-native';
 import QRCode from 'react-native-qrcode-svg';
+import { useState, useEffect } from 'react';
+import { auth, db } from '../config/firebase';
+import { doc, getDoc } from 'firebase/firestore';
 
 export default function HomeScreen() {
-  const userName = "John Doe";
-  const userId = "user123";
+  const [userName, setUserName] = useState("Loading...");
+  const userId = auth.currentUser?.uid || "no-user";
   const conferenceTitle = "TechConf 2024";
-  
+
+  useEffect(() => {
+    // Fetch user's name from Firestore
+    const fetchUserName = async () => {
+      if (auth.currentUser) {
+        const userDoc = await getDoc(doc(db, 'users', auth.currentUser.uid));
+        if (userDoc.exists()) {
+          setUserName(userDoc.data().name);
+        }
+      }
+    };
+    fetchUserName();
+  }, []);
+
+  // Rest of your code stays the same...
   return (
+  
     <ScrollView style={styles.container}>
       <View style={styles.header}>
         <Text style={styles.welcome}>Welcome to</Text>

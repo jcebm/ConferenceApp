@@ -1,8 +1,12 @@
+import { useState, useEffect } from 'react';
 import { NavigationContainer } from '@react-navigation/native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { Ionicons } from '@expo/vector-icons';
+import { onAuthStateChanged, User } from 'firebase/auth';
+import { auth } from './config/firebase';
 
-// Import your screens
+// Import screens
+import LoginScreen from './screens/LoginScreen';
 import HomeScreen from './screens/HomeScreen';
 import ScheduleScreen from './screens/ScheduleScreen';
 import NetworkingScreen from './screens/NetworkingScreen';
@@ -11,6 +15,30 @@ import ExhibitorsScreen from './screens/ExhibitorsScreen';
 const Tab = createBottomTabNavigator();
 
 export default function App() {
+  const [user, setUser] = useState<User | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    // Listen for authentication state changes
+    const unsubscribe = onAuthStateChanged(auth, (user) => {
+      setUser(user);
+      setLoading(false);
+    });
+
+    return unsubscribe;
+  }, []);
+
+  if (loading) {
+    // You could add a splash screen here
+    return null;
+  }
+
+  // Show login screen if not authenticated
+  if (!user) {
+    return <LoginScreen onLogin={setUser} />;
+  }
+
+  // Show main app if authenticated
   return (
     <NavigationContainer>
       <Tab.Navigator
@@ -45,6 +73,7 @@ export default function App() {
           name="Home" 
           component={HomeScreen}
           options={{ headerShown: false }}
+          initialParams={{ user }}
         />
         <Tab.Screen name="Schedule" component={ScheduleScreen} />
         <Tab.Screen name="Networking" component={NetworkingScreen} />
