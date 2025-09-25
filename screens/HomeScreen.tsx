@@ -1,57 +1,79 @@
-import { View, Text, StyleSheet, ScrollView } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import QRCode from 'react-native-qrcode-svg';
-import { auth } from '../config/firebase';
+import { auth, db } from '../config/firebase';
 import { signOut } from 'firebase/auth';
-import { TouchableOpacity } from 'react-native';  // Add TouchableOpacity to your imports
+import { useState, useEffect } from 'react';
+import { collection, query, where, onSnapshot } from 'firebase/firestore';
 
 export default function HomeScreen() {
-  // Get the name directly from the auth profile (faster!)
   const userName = auth.currentUser?.displayName || auth.currentUser?.email?.split('@')[0] || "Attendee";
   const userId = auth.currentUser?.uid || "no-user";
   const conferenceTitle = "TechConf 2024";
+  const [connectionCount, setConnectionCount] = useState(0);
+
+  useEffect(() => {
+    // Listen to connection count
+    if (userId !== "no-user") {
+      const q = query(
+        collection(db, 'connections'),
+        where('userId', '==', userId)
+      );
+
+      const unsubscribe = onSnapshot(q, (snapshot) => {
+        setConnectionCount(snapshot.size);
+      });
+
+      return () => unsubscribe();
+    }
+  }, [userId]);
   
   return (
-    <ScrollView style={styles.container}>
-        
-      {/* Rest stays exactly the same */}
+    <View style={styles.container}>
       <View style={styles.header}>
-  <TouchableOpacity 
-    style={styles.logoutButton} 
-    onPress={() => signOut(auth)}
-  >
-    <Text style={styles.logoutText}>Logout</Text>
-  </TouchableOpacity>
-  <Text style={styles.welcome}>Welcome to</Text>
-  <Text style={styles.conferenceTitle}>{conferenceTitle}</Text>
-  <Text style={styles.userName}>{userName}</Text>
-</View>
+        <TouchableOpacity 
+          style={styles.logoutButton} 
+          onPress={() => signOut(auth)}
+        >
+          <Text style={styles.logoutText}>Logout</Text>
+        </TouchableOpacity>
+        <Text style={styles.welcome}>Welcome to</Text>
+        <Text style={styles.conferenceTitle}>{conferenceTitle}</Text>
+        <Text style={styles.userName}>{userName}</Text>
+      </View>
+      
       <View style={styles.qrContainer}>
         <Text style={styles.sectionTitle}>Your Networking Code</Text>
         <QRCode
           value={JSON.stringify({ id: userId, name: userName })}
-          size={200}
+          size={180}
           backgroundColor="white"
         />
         <Text style={styles.qrHint}>Let others scan to connect</Text>
       </View>
+
+      <View style={styles.statsContainer}>
+        <View style={styles.statBox}>
+          <Text style={styles.statNumber}>{connectionCount}</Text>
+          <Text style={styles.statLabel}>Connections</Text>
+        </View>
+        <View style={styles.statBox}>
+          <Text style={styles.statNumber}>4</Text>
+          <Text style={styles.statLabel}>Sessions Today</Text>
+        </View>
+      </View>
       
       <View style={styles.sessionCard}>
-        <Text style={styles.sectionTitle}>Happening Now</Text>
-        <View style={styles.session}>
-          <Text style={styles.sessionName}>Opening Keynote</Text>
-          <Text style={styles.sessionDetails}>9:00 AM - Main Hall</Text>
-          <Text style={styles.sessionSpeaker}>Dr. Sarah Johnson</Text>
-        </View>
+        <Text style={styles.sessionNowLabel}>HAPPENING NOW</Text>
+        <Text style={styles.sessionName}>Opening Keynote</Text>
+        <Text style={styles.sessionDetails}>9:00 AM - Main Hall</Text>
+        <Text style={styles.sessionSpeaker}>Dr. Sarah Johnson</Text>
       </View>
 
-      <View style={styles.sessionCard}>
-        <Text style={styles.sectionTitle}>Up Next</Text>
-        <View style={styles.session}>
-          <Text style={styles.sessionName}>AI in Healthcare Panel</Text>
-          <Text style={styles.sessionDetails}>10:30 AM - Room A</Text>
-        </View>
+      <View style={styles.sessionCardSmall}>
+        <Text style={styles.sessionNextLabel}>UP NEXT</Text>
+        <Text style={styles.sessionNameSmall}>AI in Healthcare Panel • 10:30 AM • Room A</Text>
       </View>
-    </ScrollView>
+    </View>
   );
 }
 
@@ -63,28 +85,39 @@ const styles = StyleSheet.create({
   header: {
     backgroundColor: '#4A90E2',
     paddingTop: 60,
-    paddingBottom: 30,
+    paddingBottom: 25,
     alignItems: 'center',
+  },
+  logoutButton: {
+    position: 'absolute',
+    top: 50,
+    right: 20,
+    padding: 10,
+  },
+  logoutText: {
+    color: 'white',
+    fontSize: 16,
   },
   welcome: {
     color: 'white',
-    fontSize: 18,
+    fontSize: 16,
   },
   conferenceTitle: {
     color: 'white',
-    fontSize: 28,
+    fontSize: 26,
     fontWeight: 'bold',
-    marginTop: 5,
+    marginTop: 3,
   },
   userName: {
     color: 'white',
-    fontSize: 22,
-    marginTop: 10,
+    fontSize: 20,
+    marginTop: 8,
   },
   qrContainer: {
     backgroundColor: 'white',
-    margin: 20,
-    padding: 20,
+    marginHorizontal: 20,
+    marginTop: 20,
+    padding: 18,
     borderRadius: 15,
     alignItems: 'center',
     shadowColor: '#000',
@@ -94,21 +127,49 @@ const styles = StyleSheet.create({
     elevation: 3,
   },
   sectionTitle: {
-    fontSize: 18,
+    fontSize: 16,
     fontWeight: '600',
-    marginBottom: 15,
+    marginBottom: 12,
     color: '#333',
   },
   qrHint: {
-    marginTop: 10,
+    marginTop: 8,
     color: '#666',
-    fontSize: 14,
+    fontSize: 13,
+  },
+  statsContainer: {
+    flexDirection: 'row',
+    marginHorizontal: 20,
+    marginTop: 12,
+    gap: 10,
+  },
+  statBox: {
+    flex: 1,
+    backgroundColor: 'white',
+    paddingVertical: 12,
+    borderRadius: 12,
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  statNumber: {
+    fontSize: 22,
+    fontWeight: 'bold',
+    color: '#4A90E2',
+  },
+  statLabel: {
+    fontSize: 11,
+    color: '#666',
+    marginTop: 3,
   },
   sessionCard: {
     backgroundColor: 'white',
     marginHorizontal: 20,
-    marginBottom: 15,
-    padding: 20,
+    marginTop: 12,
+    padding: 16,
     borderRadius: 15,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
@@ -116,34 +177,49 @@ const styles = StyleSheet.create({
     shadowRadius: 4,
     elevation: 3,
   },
-  session: {
-    paddingTop: 5,
+  sessionNowLabel: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#4A90E2',
+    marginBottom: 6,
   },
   sessionName: {
     fontSize: 16,
     fontWeight: '600',
     color: '#333',
-    marginBottom: 5,
+    marginBottom: 4,
   },
   sessionDetails: {
-    fontSize: 14,
+    fontSize: 13,
     color: '#666',
-    marginBottom: 3,
+    marginBottom: 2,
   },
   sessionSpeaker: {
-    fontSize: 14,
+    fontSize: 13,
     color: '#4A90E2',
     fontStyle: 'italic',
   },
-
-  logoutButton: {
-  position: 'absolute',
-  top: 50,
-  right: 20,
-  padding: 10,
-},
-logoutText: {
-  color: 'white',
-  fontSize: 16,
-},
+  sessionCardSmall: {
+    backgroundColor: 'white',
+    marginHorizontal: 20,
+    marginTop: 10,
+    paddingVertical: 10,
+    paddingHorizontal: 14,
+    borderRadius: 12,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  sessionNextLabel: {
+    fontSize: 10,
+    fontWeight: '700',
+    color: '#999',
+    marginBottom: 4,
+  },
+  sessionNameSmall: {
+    fontSize: 12,
+    color: '#666',
+  },
 });

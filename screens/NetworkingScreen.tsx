@@ -2,10 +2,13 @@ import { View, Text, StyleSheet, TouchableOpacity, FlatList, Alert } from 'react
 import { useState, useEffect } from 'react';
 import { Camera, CameraView } from 'expo-camera';
 import { Ionicons } from '@expo/vector-icons';
+import { auth, db } from '../config/firebase';
+import { collection, addDoc, onSnapshot, query, where, orderBy } from 'firebase/firestore';
 
 type Contact = {
   id: string;
   name: string;
+  scannedUserId: string;
   timestamp: Date;
 };
 
@@ -13,34 +16,67 @@ export default function NetworkingScreen() {
   const [hasPermission, setHasPermission] = useState<boolean | null>(null);
   const [scanning, setScanning] = useState(false);
   const [contacts, setContacts] = useState<Contact[]>([]);
+  const currentUserId = auth.currentUser?.uid;
 
   useEffect(() => {
+    // Get camera permissions
     (async () => {
       const { status } = await Camera.requestCameraPermissionsAsync();
       setHasPermission(status === 'granted');
     })();
-  }, []);
 
-  const handleBarCodeScanned = ({ type, data }: { type: string; data: string }) => {
+    // Listen to connections from Firebase
+    if (currentUserId) {
+      const q = query(
+        collection(db, 'connections'),
+        where('userId', '==', currentUserId),
+        orderBy('timestamp', 'desc')
+      );
+
+      const unsubscribe = onSnapshot(q, (snapshot) => {
+        const connections: Contact[] = [];
+        snapshot.forEach((doc) => {
+          const data = doc.data();
+          connections.push({
+            id: doc.id,
+            name: data.contactName,
+            scannedUserId: data.contactId,
+            timestamp: data.timestamp.toDate(),
+          });
+        });
+        setContacts(connections);
+      });
+
+      return () => unsubscribe();
+    }
+  }, [currentUserId]);
+
+  const handleBarCodeScanned = async ({ type, data }: { type: string; data: string }) => {
     setScanning(false);
     
     try {
       const scannedData = JSON.parse(data);
       
       // Check if already scanned
-      if (contacts.find(c => c.id === scannedData.id)) {
+      if (contacts.find(c => c.scannedUserId === scannedData.id)) {
         Alert.alert('Already Connected', `You've already connected with ${scannedData.name}`);
         return;
       }
+
+      // Don't let users scan themselves
+      if (scannedData.id === currentUserId) {
+        Alert.alert('Oops!', "You can't connect with yourself! 😄");
+        return;
+      }
       
-      // Add to contacts
-      const newContact: Contact = {
-        id: scannedData.id,
-        name: scannedData.name,
+      // Save to Firebase
+      await addDoc(collection(db, 'connections'), {
+        userId: currentUserId,
+        contactId: scannedData.id,
+        contactName: scannedData.name,
         timestamp: new Date(),
-      };
+      });
       
-      setContacts([newContact, ...contacts]);
       Alert.alert('Success!', `Connected with ${scannedData.name}`);
     } catch (e) {
       Alert.alert('Invalid QR Code', 'This QR code is not from this conference app');
@@ -57,6 +93,10 @@ export default function NetworkingScreen() {
       return;
     }
     setScanning(true);
+  };
+
+  const handleExport = () => {
+    Alert.alert('Coming Soon', 'Export feature will be available in the next update!');
   };
 
   if (scanning) {
@@ -87,6 +127,18 @@ export default function NetworkingScreen() {
     <View style={styles.container}>
       <View style={styles.header}>
         <Text style={styles.title}>Networking</Text>
+        
+        <View style={styles.statsRow}>
+          <View style={styles.statCard}>
+            <Text style={styles.statNumber}>{contacts.length}</Text>
+            <Text style={styles.statLabel}>Connections</Text>
+          </View>
+          <TouchableOpacity style={styles.exportButton} onPress={handleExport}>
+            <Ionicons name="download-outline" size={20} color="#4A90E2" />
+            <Text style={styles.exportText}>Export</Text>
+          </TouchableOpacity>
+        </View>
+
         <TouchableOpacity style={styles.scanButton} onPress={startScanning}>
           <Ionicons name="qr-code-outline" size={24} color="white" />
           <Text style={styles.scanButtonText}>Scan QR Code</Text>
@@ -103,6 +155,7 @@ export default function NetworkingScreen() {
         <FlatList
           data={contacts}
           keyExtractor={(item) => item.id}
+          contentContainerStyle={styles.listContainer}
           renderItem={({ item }) => (
             <View style={styles.contactCard}>
               <View style={styles.contactIcon}>
@@ -114,6 +167,7 @@ export default function NetworkingScreen() {
                   Connected {item.timestamp.toLocaleTimeString()}
                 </Text>
               </View>
+              <Ionicons name="chevron-forward" size={20} color="#ccc" />
             </View>
           )}
         />
@@ -138,6 +192,43 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     marginBottom: 15,
     textAlign: 'center',
+  },
+  statsRow: {
+    flexDirection: 'row',
+    marginBottom: 15,
+    gap: 15,
+  },
+  statCard: {
+    flex: 1,
+    backgroundColor: '#f8f8f8',
+    padding: 15,
+    borderRadius: 12,
+    alignItems: 'center',
+  },
+  statNumber: {
+    fontSize: 28,
+    fontWeight: 'bold',
+    color: '#4A90E2',
+  },
+  statLabel: {
+    fontSize: 14,
+    color: '#666',
+    marginTop: 4,
+  },
+  exportButton: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#f8f8f8',
+    padding: 15,
+    borderRadius: 12,
+    gap: 8,
+  },
+  exportText: {
+    fontSize: 16,
+    color: '#4A90E2',
+    fontWeight: '600',
   },
   scanButton: {
     backgroundColor: '#4A90E2',
@@ -171,11 +262,13 @@ const styles = StyleSheet.create({
     marginTop: 8,
     textAlign: 'center',
   },
+  listContainer: {
+    padding: 20,
+  },
   contactCard: {
     flexDirection: 'row',
     backgroundColor: 'white',
-    marginHorizontal: 20,
-    marginTop: 10,
+    marginBottom: 10,
     padding: 15,
     borderRadius: 10,
     alignItems: 'center',
