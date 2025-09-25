@@ -4,6 +4,7 @@ import { Camera, CameraView } from 'expo-camera';
 import { Ionicons } from '@expo/vector-icons';
 import { auth, db } from '../config/firebase';
 import { collection, addDoc, onSnapshot, query, where, orderBy } from 'firebase/firestore';
+import { doc, getDoc } from 'firebase/firestore';  // Add getDoc to imports
 
 type Contact = {
   id: string;
@@ -12,11 +13,12 @@ type Contact = {
   timestamp: Date;
 };
 
-export default function NetworkingScreen() {
+export default function NetworkingScreen({ navigation }: any) {
   const [hasPermission, setHasPermission] = useState<boolean | null>(null);
   const [scanning, setScanning] = useState(false);
   const [contacts, setContacts] = useState<Contact[]>([]);
   const currentUserId = auth.currentUser?.uid;
+  const [isProcessing, setIsProcessing] = useState(false);
 
   useEffect(() => {
     // Get camera permissions
@@ -52,36 +54,56 @@ export default function NetworkingScreen() {
   }, [currentUserId]);
 
   const handleBarCodeScanned = async ({ type, data }: { type: string; data: string }) => {
-    setScanning(false);
+  // Immediately stop scanning and check if we're already processing
+  if (isProcessing) return;
+  
+  setScanning(false);
+  setIsProcessing(true);
+  
+  try {
+    const scannedData = JSON.parse(data);
     
-    try {
-      const scannedData = JSON.parse(data);
-      
-      // Check if already scanned
-      if (contacts.find(c => c.scannedUserId === scannedData.id)) {
-        Alert.alert('Already Connected', `You've already connected with ${scannedData.name}`);
-        return;
-      }
-
-      // Don't let users scan themselves
-      if (scannedData.id === currentUserId) {
-        Alert.alert('Oops!', "You can't connect with yourself! 😄");
-        return;
-      }
-      
-      // Save to Firebase
-      await addDoc(collection(db, 'connections'), {
-        userId: currentUserId,
-        contactId: scannedData.id,
-        contactName: scannedData.name,
-        timestamp: new Date(),
-      });
-      
-      Alert.alert('Success!', `Connected with ${scannedData.name}`);
-    } catch (e) {
-      Alert.alert('Invalid QR Code', 'This QR code is not from this conference app');
+    // Check if already scanned
+    if (contacts.find(c => c.scannedUserId === scannedData.id)) {
+      Alert.alert('Already Connected', `You've already connected with ${scannedData.name}`);
+      return;
     }
-  };
+
+    // Don't let users scan themselves
+    if (scannedData.id === currentUserId) {
+      Alert.alert('Oops!', "You can't connect with yourself! 😄");
+      return;
+    }
+    
+    // Fetch the actual profile from Firebase to get the real name
+    let contactName = scannedData.name; // fallback to QR data
+    try {
+      const userDoc = await getDoc(doc(db, 'users', scannedData.id));
+      if (userDoc.exists()) {
+        contactName = userDoc.data().name || contactName;
+      }
+    } catch (error) {
+      console.log('Could not fetch profile, using QR data');
+    }
+    
+    // Save to Firebase with the fetched name
+    await addDoc(collection(db, 'connections'), {
+      userId: currentUserId,
+      contactId: scannedData.id,
+      contactName: contactName,
+      timestamp: new Date(),
+    });
+    
+    Alert.alert('Success!', `Connected with ${contactName}`);
+  } catch (e) {
+    Alert.alert('Invalid QR Code', 'This QR code is not from this conference app');
+  } finally {
+    // Reset the processing flag after a delay
+    setTimeout(() => {
+      setIsProcessing(false);
+    }, 1000);
+  }
+};
 
   const startScanning = () => {
     if (hasPermission === null) {
@@ -157,18 +179,25 @@ export default function NetworkingScreen() {
           keyExtractor={(item) => item.id}
           contentContainerStyle={styles.listContainer}
           renderItem={({ item }) => (
-            <View style={styles.contactCard}>
-              <View style={styles.contactIcon}>
-                <Ionicons name="person" size={24} color="#4A90E2" />
-              </View>
-              <View style={styles.contactInfo}>
-                <Text style={styles.contactName}>{item.name}</Text>
-                <Text style={styles.contactTime}>
-                  Connected {item.timestamp.toLocaleTimeString()}
-                </Text>
-              </View>
-              <Ionicons name="chevron-forward" size={20} color="#ccc" />
-            </View>
+            <TouchableOpacity 
+    style={styles.contactCard}
+    onPress={() => {
+      // Navigate to profile - add this to your imports at the top
+      // @ts-ignore
+      navigation.navigate('Profile', { userId: item.scannedUserId });
+    }}
+  >
+    <View style={styles.contactIcon}>
+      <Ionicons name="person" size={24} color="#4A90E2" />
+    </View>
+    <View style={styles.contactInfo}>
+      <Text style={styles.contactName}>{item.name}</Text>
+      <Text style={styles.contactTime}>
+        Connected {item.timestamp.toLocaleTimeString()}
+      </Text>
+    </View>
+    <Ionicons name="chevron-forward" size={20} color="#ccc" />
+  </TouchableOpacity>
           )}
         />
       )}

@@ -1,11 +1,11 @@
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import QRCode from 'react-native-qrcode-svg';
 import { auth, db } from '../config/firebase';
-import { signOut } from 'firebase/auth';
 import { useState, useEffect } from 'react';
 import { collection, query, where, onSnapshot } from 'firebase/firestore';
+import { Ionicons } from '@expo/vector-icons';
 
-export default function HomeScreen() {
+export default function HomeScreen({ navigation }: any) {
   const userName = auth.currentUser?.displayName || auth.currentUser?.email?.split('@')[0] || "Attendee";
   const userId = auth.currentUser?.uid || "no-user";
   const conferenceTitle = "TechConf 2024";
@@ -31,15 +31,17 @@ export default function HomeScreen() {
     <View style={styles.container}>
       <View style={styles.header}>
         <TouchableOpacity 
-          style={styles.logoutButton} 
-          onPress={() => signOut(auth)}
+          style={styles.profileButton} 
+          onPress={() => navigation.navigate('Profile')}
         >
-          <Text style={styles.logoutText}>Logout</Text>
+          <Ionicons name="person-circle-outline" size={32} color="white" />
         </TouchableOpacity>
         <Text style={styles.welcome}>Welcome to</Text>
         <Text style={styles.conferenceTitle}>{conferenceTitle}</Text>
         <Text style={styles.userName}>{userName}</Text>
       </View>
+      
+      {/* Rest of your component stays the same */}
       
       <View style={styles.qrContainer}>
         <Text style={styles.sectionTitle}>Your Networking Code</Text>
@@ -88,15 +90,11 @@ const styles = StyleSheet.create({
     paddingBottom: 25,
     alignItems: 'center',
   },
-  logoutButton: {
+  profileButton: {
     position: 'absolute',
     top: 50,
     right: 20,
-    padding: 10,
-  },
-  logoutText: {
-    color: 'white',
-    fontSize: 16,
+    padding: 5,
   },
   welcome: {
     color: 'white',
