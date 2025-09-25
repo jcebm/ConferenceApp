@@ -13,6 +13,7 @@ import { createUserWithEmailAndPassword, signInWithEmailAndPassword, updateProfi
 import { auth, db } from '../config/firebase';
 import { doc, setDoc } from 'firebase/firestore';
 
+
 export default function LoginScreen({ onLogin }: { onLogin: (user: any) => void }) {
   const [isSignUp, setIsSignUp] = useState(false);
   const [email, setEmail] = useState('');
@@ -36,6 +37,9 @@ export default function LoginScreen({ onLogin }: { onLogin: (user: any) => void 
       await updateProfile(userCredential.user, {
         displayName: name
       });
+
+      // Reload the user to get the updated profile
+    await auth.currentUser?.reload();
       
       // Save user profile
       await setDoc(doc(db, 'users', userCredential.user.uid), {
